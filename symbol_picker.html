@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Symbol Picker</title>
+		<style>
+			body {
+				margin: 0;
+				padding: 0;
+				font-family: sans-serif;
+				display: flex;
+				flex-direction: column; /* Stack items vertically */
+				justify-content: center; /* Center items vertically */
+				align-items: center; /* Center items horizontally */
+				min-height: 100vh; /* Make body at least viewport height */
+				background-color: #f0f0f0;
+				overflow: hidden; /* Prevent scrolling the whole page */
+			}
+
+			h1 {
+				margin-bottom: 20px; /* Space between heading and container */
+				color: #333;
+			}
+
+			.container {
+				display: flex; /* Arrange category and symbol areas side-by-side */
+				width: 90%; /* Or a fixed width like 800px */
+				max-width: 1000px; /* Prevent it from getting too wide */
+				height: 80vh; /* Set a fixed height for the container */
+				background-color: #fff;
+				box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+				border-radius: 8px;
+				overflow: hidden; /* Hide potential overflow if inner content exceeds height */
+			}
+
+			.category-area { /* Renamed from category-list to hold title + buttons */
+				width: 200px; /* Fixed width for the category area */
+				padding: 15px;
+				border-right: 1px solid #eee; /* Separation line */
+				flex-shrink: 0; /* Prevent shrinking */
+				background-color: #f9f9f9;
+				display: flex; /* Use flexbox for column layout */
+				flex-direction: column;
+			}
+
+			.category-title { /* Added for dynamic title */
+				margin-top: 0;
+				margin-bottom: 15px;
+				color: #333;
+				font-size: 1.2em;
+				font-weight: bold;
+			}
+
+			.category-buttons-container { /* Added to make buttons scrollable */
+				flex-grow: 1; /* Take remaining height */
+				overflow-y: auto; /* Enable vertical scrolling for the buttons area */
+			}
+
+
+			.category-button, .back-button { /* Combined styles for buttons */
+				display: block; /* Make buttons take full width */
+				width: 100%;
+				padding: 10px;
+				margin-bottom: 5px;
+				text-align: left;
+				border: none;
+				background-color: transparent;
+				cursor: pointer;
+				border-radius: 4px;
+				transition: background-color 0.2s ease;
+			}
+
+			.category-button:hover, .back-button:hover {
+				background-color: #e9e9e9;
+			}
+
+			.category-button.active {
+				background-color: #007bff;
+				color: white;
+				font-weight: bold;
+			}
+
+			.back-button {
+				margin-bottom: 15px; /* More space after back button */
+				color: #007bff;
+				font-weight: bold;
+				border-bottom: 1px solid #eee; /* Separator below back button */
+				padding-bottom: 10px;
+			}
+			.back-button:hover {
+				text-decoration: underline;
+			}
+
+			.symbol-area {
+				flex-grow: 1; /* Take up remaining space */
+				padding: 15px;
+				overflow-y: auto; /* Enable vertical scrolling for symbols */
+			}
+
+			.symbol-group { /* Added for symbol grouping */
+				margin-bottom: 20px;
+			}
+
+			.symbol-group h4 { /* Added for group headings */
+				margin-top: 0;
+				margin-bottom: 10px;
+				color: #555;
+				border-bottom: 1px solid #eee;
+				padding-bottom: 5px;
+			}
+
+			.symbol-grid { /* Added to contain symbols within a group */
+				display: grid; /* Use grid for symbol layout */
+				grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); /* Flexible columns */
+				gap: 10px; /* Space between symbols */
+				align-content: start; /* Start content at the top */
+			}
+
+
+			.symbol-button {
+				width: 100%; /* Make button fill its grid cell width */
+				aspect-ratio: 1 / 1; /* Make buttons square */
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				font-size: 1.5em; /* Adjust symbol size */
+				border: 1px solid #ccc;
+				background-color: #fff;
+				cursor: pointer;
+				border-radius: 4px;
+				transition: border-color 0.2s ease, transform 0.1s ease; /* Add transform to transition */
+				position: relative; /* Needed for relative positioning of hover tooltip */
+				padding: 0; /* Remove padding that might affect size */
+				/* Ensure transform is initially applied for smooth transition from :active */
+				transform: scale(1);
+			}
+
+			.symbol-button:hover {
+				border-color: #007bff;
+				transform: scale(1.05); /* Slight hover effect */
+				z-index: 10; /* Bring hovered button slightly forward */
+			}
+
+			/* --- Added: Pulse effect on click --- */
+			.symbol-button:active {
+				transform: scale(0.95); /* Shrink slightly when clicked */
+				/* Transition duration is inherited from the base rule or hover rule */
+			}
+
+			/* --- Hover Tooltip Styles --- */
+			.symbol-tooltip {
+				position: absolute;
+				padding: 8px 12px;
+				background-color: #333;
+				color: white;
+				border-radius: 4px;
+				font-size: 0.8em;
+				white-space: nowrap; /* Prevent text wrapping */
+				z-index: 1000; /* Ensure it's on top of everything */
+				pointer-events: none; /* Allow clicks to pass through to elements below */
+				transform: translateX(-50%); /* Center horizontally relative to its left point */
+				/* Initial state (will be shown/hidden by JS) */
+				opacity: 0;
+				visibility: hidden; /* Use visibility for accessibility and layout impact */
+				transition: opacity 0.2s ease, visibility 0.2s ease; /* Add visibility to transition */
+			}
+
+			/* State when visible */
+			.symbol-tooltip.visible {
+				opacity: 1;
+				visibility: visible;
+			}
+
+
+			/* --- Notification Styles --- */
+			#notification {
+				position: fixed;
+				bottom: 20px;
+				left: 50%;
+				transform: translateX(-50%); /* Center horizontally */
+				background-color: #28a745; /* Success green */
+				color: white;
+				width: 250px; /* Set a fixed width */
+				height: 50px; /* Set a fixed height, adjust as needed for text wrap */
+				padding: 0; /* Remove padding as we use flexbox for centering */
+				display: flex; /* Use flexbox to center text */
+				justify-content: center; /* Center text horizontally */
+				align-items: center; /* Center text vertically */
+				text-align: center; /* Ensure text is centered within the flex item */
+				border-radius: 5px;
+				z-index: 1100; /* Higher than tooltip */
+				opacity: 0; /* Start hidden */
+				visibility: hidden; /* Also hide from screen readers when not visible */
+				transition: opacity 0.3s ease, visibility 0.3s ease;
+				pointer-events: none; /* Don't block clicks */
+			}
+
+			#notification.show {
+				opacity: 1;
+				visibility: visible;
+			}
+
+		</style>
+	</head>
+	<body>
+
+		<h1>Symbol Picker</h1>
+
+		<div class="container">
+			<div class="category-area"> <!-- Renamed class -->
+				<div class="category-title"></div> <!-- Placeholder for dynamic title -->
+				<div class="category-buttons-container">
+					<!-- Category/Subcategory buttons and Back button will be added here by JavaScript -->
+				</div>
+			</div>
+			<div class="symbol-area">
+				<!-- Symbol groups and buttons will be added here by JavaScript -->
+			</div>
+		</div>
+
+		<!-- Notification element -->
+		<div id="notification"></div>
+
+		<script>
+			const categoryAreaDiv = document.querySelector('.category-area'); // Renamed variable
+			const categoryTitleDiv = categoryAreaDiv.querySelector('.category-title'); // Get the title element
+			const categoryButtonsContainer = categoryAreaDiv.querySelector('.category-buttons-container'); // Get the buttons container
+			const symbolAreaDiv = document.querySelector('.symbol-area');
+			const notificationDiv = document.getElementById('notification');
+
+			let symbolsData; // Store the full loaded data
+			let currentCategory = null;
+			let currentSubcategory = null;
+			let currentTooltip = null; // To keep track of the currently displayed tooltip
+
+			// --- Rendering Functions ---
+
+			function renderCategoriesList() {
+				if (!symbolsData) {
+					console.error("Symbols data not loaded.");
+					showNotification("Error: Symbols data not loaded.", true);
+					return;
+				}
+
+				categoryTitleDiv.textContent = 'Categories'; // Set title
+				categoryButtonsContainer.innerHTML = ''; // Clear previous buttons
+
+				const categoryNames = Object.keys(symbolsData);
+				const fragment = document.createDocumentFragment();
+
+				if (categoryNames.length === 0) {
+					categoryButtonsContainer.innerHTML = '<p>No categories found.</p>';
+					symbolAreaDiv.innerHTML = '<p>Select a category to see symbols.</p>'; // Clear symbols area
+					return;
+				}
+
+				categoryNames.forEach((categoryName) => { // Index is not used here
+					const button = document.createElement('button');
+					button.classList.add('category-button');
+					button.textContent = categoryName;
+					button.dataset.category = categoryName; // Store category name for delegation
+					button.dataset.action = 'select-category'; // Action identifier for delegation
+					fragment.appendChild(button);
+				});
+
+				categoryButtonsContainer.appendChild(fragment);
+				symbolAreaDiv.innerHTML = '<p>Select a category to see symbols.</p>'; // Clear symbols area initially
+
+				currentCategory = null; // Reset state
+				currentSubcategory = null; // Reset state
+				hideTooltipImmediate(); // Hide tooltip when navigating back
+			}
+
+
+			function renderSubcategoriesList(categoryName) {
+				// Use optional chaining to safely access nested properties
+				const subcategories = symbolsData?.[categoryName];
+
+				if (!subcategories || typeof subcategories !== 'object') {
+					console.error(`Category "${categoryName}" not found or has incorrect data structure.`);
+					showNotification(`Error: Category "${categoryName}" not found or empty.`, true);
+					renderCategoriesList(); // Go back to category list
+					return;
+				}
+
+				categoryTitleDiv.textContent = categoryName; // Set title to category name
+				categoryButtonsContainer.innerHTML = ''; // Clear previous buttons
+
+				const subcategoryNames = Object.keys(subcategories);
+				const fragment = document.createDocumentFragment();
+
+				// Add Back button
+				const backButton = document.createElement('button');
+				backButton.classList.add('back-button');
+				backButton.textContent = '< Back to Categories';
+				backButton.dataset.action = 'go-back'; // Action identifier for delegation
+				fragment.appendChild(backButton);
+
+				if (subcategoryNames.length === 0) {
+					const noSubtext = document.createElement('p');
+					noSubtext.textContent = 'No subcategories found.';
+					noSubtext.style.paddingLeft = '10px'; // Add some indentation
+					fragment.appendChild(noSubtext);
+					symbolAreaDiv.innerHTML = '<p>No subcategories found.</p>'; // Clear symbols area
+				} else {
+					subcategoryNames.forEach(subName => {
+						const button = document.createElement('button');
+						button.classList.add('category-button'); // Use same class for styling
+						button.textContent = subName;
+						button.dataset.category = categoryName; // Still useful to know parent
+						button.dataset.subcategory = subName; // Store subcategory name
+						button.dataset.action = 'select-subcategory'; // Action identifier for delegation
+						fragment.appendChild(button);
+					});
+					symbolAreaDiv.innerHTML = '<p>Select a subcategory to see symbols.</p>'; // Clear symbols area
+				}
+
+				categoryButtonsContainer.appendChild(fragment);
+
+				// Set current category state
+				currentCategory = categoryName;
+				currentSubcategory = null; // Reset subcategory state
+				hideTooltipImmediate(); // Hide tooltip when changing context
+			}
+
+
+			function renderSymbolsArea(categoryName, subcategoryName) {
+				symbolAreaDiv.innerHTML = ''; // Clear previous symbols
+
+				// Access the group object using optional chaining
+				const groupObject = symbolsData?.[categoryName]?.[subcategoryName];
+
+				// Check if the data exists and is an object (which holds the groups)
+				if (!groupObject || typeof groupObject !== 'object') {
+					console.error(`Subcategory "${subcategoryName}" not found or has incorrect data structure in category "${categoryName}".`);
+					symbolAreaDiv.innerHTML = '<p>Selected category or subcategory not found or has incorrect data structure.</p>';
+					showNotification(`Error: Could not load symbols for "${subcategoryName}".`, true);
+					return;
+				}
+
+				// Get the list of group names (keys of the groupObject)
+				const groupNames = Object.keys(groupObject);
+
+				if (groupNames.length === 0) {
+					symbolAreaDiv.innerHTML = '<p>No symbol groups in this subcategory.</p>';
+					return;
+				}
+
+				const fragment = document.createDocumentFragment();
+
+				// Iterate through the group names
+				groupNames.forEach(groupName => {
+					const symbolsInGroup = groupObject[groupName]; // Get the array of symbols for this group
+
+					// Ensure symbolsInGroup is an array and has items
+					if (!Array.isArray(symbolsInGroup) || symbolsInGroup.length === 0) {
+						console.warn(`Group "${groupName}" in subcategory "${subcategoryName}" is empty or not an array.`);
+						return; // Skip rendering this group if it's empty or not an array
+					}
+
+					// Create the div for this group
+					const groupDiv = document.createElement('div');
+					groupDiv.classList.add('symbol-group');
+
+					// Create and add the group heading
+					const groupHeading = document.createElement('h4');
+					groupHeading.textContent = groupName; // Use the group name as the heading
+					groupDiv.appendChild(groupHeading);
+
+					// Create the grid container for symbols within this group
+					const symbolGridDiv = document.createElement('div');
+					symbolGridDiv.classList.add('symbol-grid');
+
+					// Iterate through the symbols in the current group array
+					symbolsInGroup.forEach(symbolInfo => {
+						// Basic validation for symbol object structure
+						if (!symbolInfo || typeof symbolInfo.symbol === 'undefined' || !symbolInfo.name || !symbolInfo.unicode) {
+							console.warn(`Invalid symbol object found in group "${groupName}" of subcategory "${subcategoryName}":`, symbolInfo);
+							return; // Skip invalid symbol object
+						}
+						const button = document.createElement('button');
+						button.classList.add('symbol-button');
+						button.textContent = symbolInfo.symbol;
+						button.dataset.symbol = symbolInfo.symbol;
+						button.dataset.name = symbolInfo.name;
+						button.dataset.unicode = symbolInfo.unicode;
+
+						// Add the mouseleave listener directly to the button
+						button.addEventListener('mouseleave', () => {
+							hideTooltip(); // Call the existing hideTooltip function
+						});
+
+						symbolGridDiv.appendChild(button);
+					});
+
+					// Add the symbol grid to the group div
+					groupDiv.appendChild(symbolGridDiv);
+					// Add the group div to the fragment
+					fragment.appendChild(groupDiv);
+				});
+
+				// Append the fragment to the symbol area
+				symbolAreaDiv.appendChild(fragment);
+
+				// Set current subcategory state
+				currentSubcategory = subcategoryName;
+				hideTooltipImmediate(); // Hide any tooltip when rendering new symbols
+			}
+
+			// --- Event Delegation Handlers ---
+
+			// Handle clicks within the category-area (categories, subcategories, back)
+			categoryButtonsContainer.addEventListener('click', (event) => {
+				const target = event.target.closest('button'); // Find the nearest button ancestor
+				if (!target) return; // Not a button
+
+				const action = target.dataset.action;
+
+				if (action === 'select-category') {
+					const categoryName = target.dataset.category;
+					renderSubcategoriesList(categoryName);
+				} else if (action === 'select-subcategory') {
+					const categoryName = target.dataset.category; // Get parent category
+					const subcategoryName = target.dataset.subcategory;
+					// Remove active class from previous category/subcategory buttons
+					categoryButtonsContainer.querySelectorAll('.category-button').forEach(btn => btn.classList.remove('active'));
+					target.classList.add('active'); // Add active class to the clicked subcategory button
+					renderSymbolsArea(categoryName, subcategoryName);
+				} else if (action === 'go-back') {
+					renderCategoriesList(); // Go back to the main category list
+				}
+			});
+
+
+			// Handle clicks and hovers within the symbol-area (symbol buttons)
+			// Note: Mouseleave is now handled by listeners attached to individual buttons.
+			symbolAreaDiv.addEventListener('click', (event) => {
+				const button = event.target.closest('.symbol-button');
+				if (!button) return; // Not a symbol button
+
+				handleSymbolClick(button); // Pass the button element to the handler
+			});
+
+			symbolAreaDiv.addEventListener('mouseover', (event) => {
+				const button = event.target.closest('.symbol-button');
+				// Only show tooltip if the event target *is* or *is inside* a symbol button
+				if (button) {
+					handleSymbolHover(button); // Pass the button element to the handler
+				}
+				// Mouse leaving is now handled by individual button listeners.
+			});
+
+			// REMOVED: Mouseleave listener on symbolAreaDiv is no longer needed for button exits.
+			/*
+			symbolAreaDiv.addEventListener('mouseleave', (event) => {
+				// This listener is less precise than attaching mouseleave to each button.
+				// The individual button mouseleave handlers are now responsible.
+				// Keeping this only for leaving the entire container from non-button areas,
+				// but it's safer to rely on individual button events. Removing for simplicity.
+				const relatedTarget = event.relatedTarget;
+				if (!relatedTarget || !symbolAreaDiv.contains(relatedTarget)) {
+					hideTooltip();
+				}
+			});
+			*/
+
+
+			// --- Specific Handlers (Called by delegation or direct listeners) ---
+
+			function handleSymbolHover(button) {
+				const name = button.dataset.name;
+				const unicode = button.dataset.unicode;
+
+				// Remove any existing tooltip immediately before creating a new one
+				hideTooltipImmediate();
+
+				currentTooltip = document.createElement('div');
+				currentTooltip.classList.add('symbol-tooltip');
+				// Ensure name and Unicode are not null/undefined before using innerHTML
+				currentTooltip.innerHTML = `<strong>${name || 'Unknown Name'}</strong><br>${unicode || 'Unknown Unicode'}`;
+
+
+				document.body.appendChild(currentTooltip); // Append to body for z-index control
+
+				// Position the tooltip below the button
+				requestAnimationFrame(() => {
+					if (!currentTooltip || !currentTooltip.parentElement) return;
+
+					const buttonRect = button.getBoundingClientRect();
+					const tooltipRect = currentTooltip.getBoundingClientRect();
+
+					let tooltipLeft = buttonRect.left + buttonRect.width / 2; // Center below button
+
+					// Adjust left position if it goes off the right edge
+					if (tooltipLeft + tooltipRect.width / 2 > window.innerWidth - 10) {
+						tooltipLeft = window.innerWidth - 10 - tooltipRect.width / 2; // 10px margin from edge
+					}
+					// Adjust left position if it goes off the left edge
+					if (tooltipLeft - tooltipRect.width / 2 < 10) {
+						tooltipLeft = 10 + tooltipRect.width / 2; // 10px margin from edge
+					}
+
+					currentTooltip.style.top = `${buttonRect.bottom + 5}px`; // 5px below button
+					currentTooltip.style.left = `${tooltipLeft}px`;
+
+					// Add 'visible' class after positioning to trigger transition
+					requestAnimationFrame(() => {
+						if (currentTooltip) {
+							currentTooltip.classList.add('visible');
+						}
+					});
+				});
+			}
+
+			function hideTooltip() {
+				if (currentTooltip) {
+					currentTooltip.classList.remove('visible');
+					const transitionDuration = 200; // ms (Must match CSS transition duration)
+
+					// Clear any existing timeout for the same element before setting a new one
+					if (currentTooltip.dataset.timeoutId) {
+						clearTimeout(parseInt(currentTooltip.dataset.timeoutId));
+					}
+
+					// Set a timeout to remove the element after the transition
+					currentTooltip.dataset.timeoutId = setTimeout(() => {
+						// Check if this is still the current tooltip and if it's hidden
+						if (currentTooltip && !currentTooltip.classList.contains('visible') && currentTooltip.parentElement) {
+							currentTooltip.parentElement.removeChild(currentTooltip);
+							currentTooltip = null; // Clear reference
+						}
+					}, transitionDuration);
+				}
+			}
+
+			function hideTooltipImmediate() {
+				if (currentTooltip) {
+					// Clear any pending removal timeout
+					if (currentTooltip.dataset.timeoutId) {
+						clearTimeout(parseInt(currentTooltip.dataset.timeoutId));
+						currentTooltip.dataset.timeoutId = ''; // Clear data attribute
+					}
+					if (currentTooltip.parentElement) {
+						currentTooltip.parentElement.removeChild(currentTooltip);
+					}
+					currentTooltip = null; // Clear reference
+				}
+			}
+
+
+			async function handleSymbolClick(button) { // Accept button element
+				const symbol = button.dataset.symbol;
+				if (!symbol) {
+					showNotification('Could not get symbol data.', true);
+					return;
+				}
+
+				hideTooltipImmediate(); // Hide tooltip on click
+
+				try {
+					await navigator.clipboard.writeText(symbol);
+					showNotification(`Copied: ${symbol}`);
+				} catch (err) {
+					console.error('Failed to copy symbol: ', err);
+					if (!navigator.clipboard || !navigator.clipboard.writeText) {
+						showNotification('Clipboard API not supported in this browser.', true);
+					} else {
+						// This might happen if the user denied permission or in some secure contexts
+						showNotification('Failed to copy symbol to clipboard.', true);
+					}
+				}
+			}
+
+			let notificationTimeout;
+			function showNotification(message, isError = false) {
+				clearTimeout(notificationTimeout);
+
+				notificationDiv.textContent = message;
+				notificationDiv.style.backgroundColor = isError ? '#dc3545' : '#28a745'; // Red for error
+
+				// Add a temporary class to force re-rendering and restart the animation
+				notificationDiv.classList.remove('show');
+				// Use requestAnimationFrame to ensure the class removal is processed
+				requestAnimationFrame(() => {
+					notificationDiv.classList.add('show');
+				});
+
+
+				notificationTimeout = setTimeout(() => {
+					notificationDiv.classList.remove('show');
+				}, 3000); // Hide after 3 seconds
+			}
+
+
+			// --- Initialization ---
+			document.addEventListener('DOMContentLoaded', () => {
+				// Fetch the JSON data from the NEW format file
+				fetch('symbols.json') // <<< CHANGED FROM symbols.json
+						.then(response => {
+							// Check if the request was successful (e.g., status 200-299)
+							if (!response.ok) {
+								throw new Error(`HTTP error! status: ${response.status}`);
+							}
+							return response.json();
+						})
+						.then(data => {
+							// Basic validation of the top-level structure
+							if (typeof data !== 'object' || data === null) {
+								throw new Error('JSON data is not an object.');
+							}
+							symbolsData = data; // Assign the loaded data
+							renderCategoriesList(); // Start by rendering top-level categories
+						})
+						.catch(error => {
+							console.error('Error loading symbols.json:', error);
+							// Display an error message in the UI
+							categoryTitleDiv.textContent = 'Error';
+							categoryButtonsContainer.innerHTML = '<p style="color: red; padding: 10px;">Error loading categories.</p>';
+							symbolAreaDiv.innerHTML = '<p style="color: red;">Could not load symbols data. Check console for details.</p>';
+							showNotification(`Error: ${error.message || 'Failed to load symbols data.'}`, true);
+						});
+			});
+
+		</script>
+
+	</body>
+</html>
