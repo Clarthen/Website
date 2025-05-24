@@ -134,6 +134,8 @@
 				padding: 0; /* Remove padding that might affect size */
 				/* Ensure transform is initially applied for smooth transition from :active */
 				transform: scale(1);
+
+				font-family: "Times New Roman", sans-serif;
 			}
 
 			.symbol-button:hover {
@@ -223,9 +225,9 @@
 		<div id="notification"></div>
 
 		<script>
-			const categoryAreaDiv = document.querySelector('.category-area'); // Renamed variable
-			const categoryTitleDiv = categoryAreaDiv.querySelector('.category-title'); // Get the title element
-			const categoryButtonsContainer = categoryAreaDiv.querySelector('.category-buttons-container'); // Get the buttons container
+			const categoryAreaDiv = document.querySelector('.category-area');
+			const categoryTitleDiv = categoryAreaDiv.querySelector('.category-title');
+			const categoryButtonsContainer = categoryAreaDiv.querySelector('.category-buttons-container');
 			const symbolAreaDiv = document.querySelector('.symbol-area');
 			const notificationDiv = document.getElementById('notification');
 
@@ -255,12 +257,12 @@
 					return;
 				}
 
-				categoryNames.forEach((categoryName) => { // Index is not used here
+				categoryNames.forEach((categoryName) => {
 					const button = document.createElement('button');
 					button.classList.add('category-button');
 					button.textContent = categoryName;
-					button.dataset.category = categoryName; // Store category name for delegation
-					button.dataset.action = 'select-category'; // Action identifier for delegation
+					button.dataset.category = categoryName;
+					button.dataset.action = 'select-category';
 					fragment.appendChild(button);
 				});
 
@@ -294,26 +296,26 @@
 				const backButton = document.createElement('button');
 				backButton.classList.add('back-button');
 				backButton.textContent = '< Back to Categories';
-				backButton.dataset.action = 'go-back'; // Action identifier for delegation
+				backButton.dataset.action = 'go-back';
 				fragment.appendChild(backButton);
 
 				if (subcategoryNames.length === 0) {
 					const noSubtext = document.createElement('p');
 					noSubtext.textContent = 'No subcategories found.';
-					noSubtext.style.paddingLeft = '10px'; // Add some indentation
+					noSubtext.style.paddingLeft = '10px';
 					fragment.appendChild(noSubtext);
-					symbolAreaDiv.innerHTML = '<p>No subcategories found.</p>'; // Clear symbols area
+					symbolAreaDiv.innerHTML = '<p>No subcategories found.</p>';
 				} else {
 					subcategoryNames.forEach(subName => {
 						const button = document.createElement('button');
-						button.classList.add('category-button'); // Use same class for styling
+						button.classList.add('category-button');
 						button.textContent = subName;
-						button.dataset.category = categoryName; // Still useful to know parent
-						button.dataset.subcategory = subName; // Store subcategory name
-						button.dataset.action = 'select-subcategory'; // Action identifier for delegation
+						button.dataset.category = categoryName;
+						button.dataset.subcategory = subName;
+						button.dataset.action = 'select-subcategory';
 						fragment.appendChild(button);
 					});
-					symbolAreaDiv.innerHTML = '<p>Select a subcategory to see symbols.</p>'; // Clear symbols area
+					symbolAreaDiv.innerHTML = '<p>Select a subcategory to see symbols.</p>';
 				}
 
 				categoryButtonsContainer.appendChild(fragment);
@@ -329,6 +331,7 @@
 				symbolAreaDiv.innerHTML = ''; // Clear previous symbols
 
 				// Access the group object using optional chaining
+				// In the new format, this 'groupObject' itself contains the groups (e.g., 'Capital', 'Small')
 				const groupObject = symbolsData?.[categoryName]?.[subcategoryName];
 
 				// Check if the data exists and is an object (which holds the groups)
@@ -339,7 +342,7 @@
 					return;
 				}
 
-				// Get the list of group names (keys of the groupObject)
+				// Get the list of group names (e.g., "Capital", "Small", "Decimal")
 				const groupNames = Object.keys(groupObject);
 
 				if (groupNames.length === 0) {
@@ -349,14 +352,15 @@
 
 				const fragment = document.createDocumentFragment();
 
-				// Iterate through the group names
+				// Iterate through the group names (e.g., "Capital", "Small")
 				groupNames.forEach(groupName => {
-					const symbolsInGroup = groupObject[groupName]; // Get the array of symbols for this group
+					// In the new format, symbolsMap is an object like {"A": {"name": "...", "unicode": "..."}}
+					const symbolsMap = groupObject[groupName];
 
-					// Ensure symbolsInGroup is an array and has items
-					if (!Array.isArray(symbolsInGroup) || symbolsInGroup.length === 0) {
-						console.warn(`Group "${groupName}" in subcategory "${subcategoryName}" is empty or not an array.`);
-						return; // Skip rendering this group if it's empty or not an array
+					// Ensure symbolsMap is an object and has keys
+					if (!symbolsMap || typeof symbolsMap !== 'object' || Object.keys(symbolsMap).length === 0) {
+						console.warn(`Group "${groupName}" in subcategory "${subcategoryName}" is empty or not an object.`);
+						return; // Skip rendering this group if it's empty or not an object
 					}
 
 					// Create the div for this group
@@ -372,23 +376,25 @@
 					const symbolGridDiv = document.createElement('div');
 					symbolGridDiv.classList.add('symbol-grid');
 
-					// Iterate through the symbols in the current group array
-					symbolsInGroup.forEach(symbolInfo => {
+					// Iterate through the keys (symbol characters) in the current group object
+					Object.keys(symbolsMap).forEach(symbolChar => { // `symbolChar` is the actual character like "A", "Б", "α", "0"
+						const symbolInfo = symbolsMap[symbolChar]; // `symbolInfo` is the object like {"name": "...", "unicode": "..."}
+
 						// Basic validation for symbol object structure
-						if (!symbolInfo || typeof symbolInfo.symbol === 'undefined' || !symbolInfo.name || !symbolInfo.unicode) {
-							console.warn(`Invalid symbol object found in group "${groupName}" of subcategory "${subcategoryName}":`, symbolInfo);
+						if (!symbolInfo || !symbolInfo.name || !symbolInfo.unicode) {
+							console.warn(`Invalid symbol object found for symbol "${symbolChar}" in group "${groupName}" of subcategory "${subcategoryName}":`, symbolInfo);
 							return; // Skip invalid symbol object
 						}
 						const button = document.createElement('button');
 						button.classList.add('symbol-button');
-						button.textContent = symbolInfo.symbol;
-						button.dataset.symbol = symbolInfo.symbol;
+						button.textContent = symbolChar; // The symbol character is now the key itself
+						button.dataset.symbol = symbolChar; // Store the symbol character
 						button.dataset.name = symbolInfo.name;
 						button.dataset.unicode = symbolInfo.unicode;
 
 						// Add the mouseleave listener directly to the button
 						button.addEventListener('mouseleave', () => {
-							hideTooltip(); // Call the existing hideTooltip function
+							hideTooltip();
 						});
 
 						symbolGridDiv.appendChild(button);
@@ -434,36 +440,19 @@
 
 
 			// Handle clicks and hovers within the symbol-area (symbol buttons)
-			// Note: Mouseleave is now handled by listeners attached to individual buttons.
 			symbolAreaDiv.addEventListener('click', (event) => {
 				const button = event.target.closest('.symbol-button');
 				if (!button) return; // Not a symbol button
 
-				handleSymbolClick(button); // Pass the button element to the handler
+				handleSymbolClick(button);
 			});
 
 			symbolAreaDiv.addEventListener('mouseover', (event) => {
 				const button = event.target.closest('.symbol-button');
-				// Only show tooltip if the event target *is* or *is inside* a symbol button
 				if (button) {
-					handleSymbolHover(button); // Pass the button element to the handler
-				}
-				// Mouse leaving is now handled by individual button listeners.
-			});
-
-			// REMOVED: Mouseleave listener on symbolAreaDiv is no longer needed for button exits.
-			/*
-			symbolAreaDiv.addEventListener('mouseleave', (event) => {
-				// This listener is less precise than attaching mouseleave to each button.
-				// The individual button mouseleave handlers are now responsible.
-				// Keeping this only for leaving the entire container from non-button areas,
-				// but it's safer to rely on individual button events. Removing for simplicity.
-				const relatedTarget = event.relatedTarget;
-				if (!relatedTarget || !symbolAreaDiv.contains(relatedTarget)) {
-					hideTooltip();
+					handleSymbolHover(button);
 				}
 			});
-			*/
 
 
 			// --- Specific Handlers (Called by delegation or direct listeners) ---
@@ -472,8 +461,7 @@
 				const name = button.dataset.name;
 				const unicode = button.dataset.unicode;
 
-				// Remove any existing tooltip immediately before creating a new one
-				hideTooltipImmediate();
+				hideTooltipImmediate(); // Remove any existing tooltip immediately before creating a new one
 
 				currentTooltip = document.createElement('div');
 				currentTooltip.classList.add('symbol-tooltip');
@@ -549,7 +537,7 @@
 			}
 
 
-			async function handleSymbolClick(button) { // Accept button element
+			async function handleSymbolClick(button) {
 				const symbol = button.dataset.symbol;
 				if (!symbol) {
 					showNotification('Could not get symbol data.', true);
@@ -566,7 +554,6 @@
 					if (!navigator.clipboard || !navigator.clipboard.writeText) {
 						showNotification('Clipboard API not supported in this browser.', true);
 					} else {
-						// This might happen if the user denied permission or in some secure contexts
 						showNotification('Failed to copy symbol to clipboard.', true);
 					}
 				}
@@ -577,35 +564,31 @@
 				clearTimeout(notificationTimeout);
 
 				notificationDiv.textContent = message;
-				notificationDiv.style.backgroundColor = isError ? '#dc3545' : '#28a745'; // Red for error
+				notificationDiv.style.backgroundColor = isError ? '#dc3545' : '#28a745';
 
 				// Add a temporary class to force re-rendering and restart the animation
 				notificationDiv.classList.remove('show');
-				// Use requestAnimationFrame to ensure the class removal is processed
 				requestAnimationFrame(() => {
 					notificationDiv.classList.add('show');
 				});
 
-
 				notificationTimeout = setTimeout(() => {
 					notificationDiv.classList.remove('show');
-				}, 3000); // Hide after 3 seconds
+				}, 3000);
 			}
 
 
 			// --- Initialization ---
 			document.addEventListener('DOMContentLoaded', () => {
-				// Fetch the JSON data from the NEW format file
-				fetch('symbols.json') // <<< CHANGED FROM symbols.json
+				// Fetch the JSON data from symbols.json
+				fetch('symbols.json')
 						.then(response => {
-							// Check if the request was successful (e.g., status 200-299)
 							if (!response.ok) {
 								throw new Error(`HTTP error! status: ${response.status}`);
 							}
 							return response.json();
 						})
 						.then(data => {
-							// Basic validation of the top-level structure
 							if (typeof data !== 'object' || data === null) {
 								throw new Error('JSON data is not an object.');
 							}
@@ -614,7 +597,6 @@
 						})
 						.catch(error => {
 							console.error('Error loading symbols.json:', error);
-							// Display an error message in the UI
 							categoryTitleDiv.textContent = 'Error';
 							categoryButtonsContainer.innerHTML = '<p style="color: red; padding: 10px;">Error loading categories.</p>';
 							symbolAreaDiv.innerHTML = '<p style="color: red;">Could not load symbols data. Check console for details.</p>';
