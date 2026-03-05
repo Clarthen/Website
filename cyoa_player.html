@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CYOA Player</title>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #556075;
+            --accent-color: #5b739b;
+            --accent-hover: #4a5f82;
+            --light-border: #e2e8f0;
+            --font-family: 'Segoe UI', Arial, sans-serif;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #app-container {
+            width: 100%;
+            max-width: 650px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 40px 20px 20px 20px;
+            box-sizing: border-box;
+        }
+
+        /* --- Setup Screen --- */
+        #setup-screen {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            text-align: center;
+        }
+
+        #setup-screen h1 { 
+            color: var(--accent-color); 
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+
+        .upload-area {
+            margin: 20px 0;
+            width: 100%;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            background: #f8fafc;
+            color: var(--text-color);
+            border: 1px solid var(--light-border);
+            border-radius: 4px;
+            padding: 10px;
+            box-sizing: border-box;
+            resize: vertical;
+            margin-bottom: 15px;
+            font-family: monospace;
+        }
+
+        /* --- Story Screen --- */
+        #story-screen {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        #story-header {
+            text-align: center;
+            padding-bottom: 30px;
+            margin-bottom: 10px;
+        }
+
+        #story-header h2 { 
+            margin: 0; 
+            font-size: 1.5rem; 
+            color: var(--accent-color);
+        }
+
+        #story-header p { 
+            margin: 8px 0 0 0; 
+            font-size: 0.95rem; 
+            color: #8da1b9; 
+        }
+
+        /* --- Scrollable Area --- */
+        #story-log {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            
+            /* Hide scrollbar completely */
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+        
+        #story-log::-webkit-scrollbar {
+            display: none; /* Chrome, Safari and Opera */
+        }
+
+        #story-content {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+
+        /* --- Text Elements --- */
+        .message {
+            line-height: 1.6;
+            font-size: 1rem;
+            margin-bottom: 25px;
+            animation: fadeIn 0.4s ease-out forwards;
+            opacity: 0;
+            word-wrap: break-word;
+            word-break: break-word; 
+        }
+
+        .narrator {
+            text-align: left;
+            align-self: flex-start;
+            max-width: 100%;
+        }
+
+        .player {
+            text-align: right;
+            align-self: flex-end;
+            font-weight: bold;
+            border-right: 3px solid var(--accent-color);
+            padding-right: 15px;
+            max-width: 80%;
+            color: var(--accent-color);
+        }
+
+        .ending-block {
+            align-self: center;
+            text-align: center;
+            margin-top: 30px;
+            margin-bottom: 20px;
+            padding: 20px 0;
+            border-top: 1px dashed var(--light-border);
+            border-bottom: 1px dashed var(--light-border);
+            width: 100%;
+            animation: fadeIn 0.6s ease-out forwards;
+        }
+
+        .ending-block h3 { 
+            margin: 0 0 5px 0; 
+            font-size: 1.2rem; 
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent-color);
+        }
+        
+        .ending-block p { 
+            margin: 0; 
+            font-size: 0.95rem;
+        }
+
+        /* --- Controls & Buttons --- */
+        #controls {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+            padding-top: 10px;
+            padding-bottom: 30px;
+        }
+
+        button {
+            background: var(--accent-color);
+            color: white;
+            border: 1px solid var(--accent-color);
+            padding: 8px 20px;
+            font-size: 0.95rem;
+            border-radius: 20px; 
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s ease;
+            font-family: var(--font-family);
+            max-width: 90%;
+            word-wrap: break-word;
+        }
+
+        button:hover { 
+            background: var(--accent-hover); 
+            border-color: var(--accent-hover);
+        }
+
+        .btn-secondary {
+            background: #ffffff;
+            color: var(--text-color);
+            border: 1px solid var(--light-border);
+            font-weight: 600;
+        }
+
+        .btn-secondary:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            color: var(--accent-color);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <!-- Setup Screen -->
+        <div id="setup-screen">
+            <h1>CYOA Player</h1>
+            <p>Upload a .json file or paste your story text below.</p>
+            
+            <div class="upload-area">
+                <!-- The 'for="file-input"' natively triggers the input click. No JS needed! -->
+                <label for="file-input" style="display:inline-block; margin-bottom: 10px; cursor: pointer; color: var(--accent-color); font-weight: bold;">
+                    Select JSON File
+                </label>
+                <input type="file" id="file-input" accept=".json" style="display: none;">
+            </div>
+
+            <textarea id="json-input" placeholder="Paste your JSON script here..."></textarea>
+            <button class="btn-secondary" style="border-radius: 4px;" onclick="loadFromTextarea()">Start Story</button>
+        </div>
+
+        <!-- Story Screen -->
+        <div id="story-screen">
+            <div id="story-header">
+                <h2 id="ui-title">Title Here</h2>
+                <p id="ui-desc"></p>
+            </div>
+            
+            <div id="story-log">
+                <div id="story-content"></div>
+                <div id="controls"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let storyData = null;
+        let currentScene = "";
+        let currentStepIndex = 0;
+
+        const setupScreen = document.getElementById('setup-screen');
+        const storyScreen = document.getElementById('story-screen');
+        const storyContent = document.getElementById('story-content');
+        const storyLog = document.getElementById('story-log');
+        const controls = document.getElementById('controls');
+        const fileInput = document.getElementById('file-input');
+
+        // File Input Listener
+        fileInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    initStory(json);
+                } catch (err) {
+                    alert("Error parsing JSON file. Make sure it is valid JSON.");
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+            
+            // Reset the input value so the same file can be selected again if needed
+            event.target.value = '';
+        });
+
+        // Load from Textarea
+        function loadFromTextarea() {
+            const text = document.getElementById('json-input').value;
+            if (!text.trim()) {
+                alert("Please paste some JSON first.");
+                return;
+            }
+            try {
+                const json = JSON.parse(text);
+                initStory(json);
+            } catch (err) {
+                alert("Error parsing JSON text. Make sure it is strictly valid JSON.");
+                console.error(err);
+            }
+        }
+
+        // Initialize Story
+        function initStory(json) {
+            storyData = json;
+            currentScene = storyData.first_scene;
+            currentStepIndex = 0;
+
+            document.getElementById('ui-title').innerText = storyData.name || "Untitled";
+            document.getElementById('ui-desc').innerText = storyData.description || "";
+
+            setupScreen.style.display = "none";
+            storyScreen.style.display = "flex";
+            storyContent.innerHTML = ""; 
+
+            playCurrentStep();
+        }
+
+        // Render current step in the JSON
+        function playCurrentStep() {
+            const sceneBlocks = storyData.scenes[currentScene];
+            
+            if (!sceneBlocks || currentStepIndex >= sceneBlocks.length) {
+                return;
+            }
+
+            const block = sceneBlocks[currentStepIndex];
+            controls.innerHTML = ""; 
+
+            let textToDisplay = "";
+            let choiceData = null;
+            let endingData = null;
+
+            if (typeof block === "string") {
+                textToDisplay = block;
+            } else if (typeof block === "object") {
+                if (block.text) textToDisplay = block.text;
+                if (block.choice) choiceData = block.choice;
+                if (block.ending) endingData = block.ending;
+            }
+
+            if (textToDisplay) {
+                appendMessage(textToDisplay, 'narrator');
+            }
+
+            if (endingData) {
+                renderEnding(endingData);
+                renderRestartButton();
+            } else if (choiceData) {
+                renderChoices(choiceData);
+            } else {
+                renderContinueButton();
+            }
+
+            scrollToBottom();
+        }
+
+        function appendMessage(text, type) {
+            const div = document.createElement('div');
+            div.className = `message ${type}`;
+            div.innerText = text;
+            storyContent.appendChild(div);
+        }
+
+        function renderContinueButton() {
+            const btn = document.createElement('button');
+            btn.innerText = "Continue";
+            btn.className = "btn-secondary"; 
+            btn.onclick = () => {
+                currentStepIndex++;
+                playCurrentStep();
+            };
+            controls.appendChild(btn);
+        }
+
+        function renderChoices(choices) {
+            for (const key in choices) {
+                const choiceObj = choices[key];
+                const btn = document.createElement('button');
+                btn.innerText = choiceObj.name; 
+                btn.onclick = () => {
+                    handleChoice(choiceObj.name, choiceObj.load_scene);
+                };
+                controls.appendChild(btn);
+            }
+        }
+
+        function renderEnding(ending) {
+            const div = document.createElement('div');
+            div.className = 'ending-block';
+            div.innerHTML = `
+                <h3>${ending.name}</h3>
+                <p>${ending.description}</p>
+            `;
+            storyContent.appendChild(div);
+        }
+
+        function renderRestartButton() {
+            const btn = document.createElement('button');
+            btn.innerText = "Restart";
+            btn.className = "btn-secondary"; 
+            btn.onclick = () => {
+                initStory(storyData);
+            };
+            controls.appendChild(btn);
+        }
+
+        function handleChoice(choiceText, nextScene) {
+            appendMessage(choiceText, 'player');
+            
+            currentScene = nextScene;
+            currentStepIndex = 0;
+            
+            controls.innerHTML = "";
+            setTimeout(() => {
+                playCurrentStep();
+            }, 200);
+            
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            setTimeout(() => {
+                storyLog.scrollTop = storyLog.scrollHeight;
+            }, 50);
+        }
+    </script>
+</body>
+</html>
