@@ -61,7 +61,7 @@
                 color: white;
                 border-radius: 4px;
                 font-size: 14px;
-                pointer-events: none; /* Important: allows clicking through the tooltip */
+                pointer-events: none;
                 z-index: 20;
             }
 
@@ -73,7 +73,7 @@
                 width: 100%;
                 height: 100%;
                 background-color: rgba(0, 0, 0, 0.6);
-                display: none; /* Hidden by default */
+                display: none;
                 justify-content: center;
                 align-items: center;
                 z-index: 100;
@@ -84,7 +84,7 @@
                 padding: 20px 30px;
                 border-radius: 10px;
                 box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-                width: 380px; /* Use a fixed width to prevent resizing */
+                width: 380px;
                 max-width: 90vw;
             }
             .modal-header {
@@ -108,7 +108,6 @@
                 color: #34495e;
             }
 
-            /* Class to hide ID fields */
             .id-field {
                 display: none;
             }
@@ -202,7 +201,7 @@
 				<label for="nodeNameInput" class="name-field">Node Name:</label>
 				<input type="text" id="nodeNameInput" class="name-field" placeholder="E.g., Server Rack">
 				<label for="nodeIdInput" class="id-field">Node ID:</label>
-				<input type="text" id="nodeIdInput" class="id-field" placeholder="E.g., serverRack (auto-generated)">
+				<input type="text" id="nodeIdInput" class="id-field" readonly>
 
 				<div class="customization-section">
 					<div> <label for="nodeColorPicker">Color:</label> <div id="nodeColorPicker" class="color-picker"></div> </div>
@@ -228,7 +227,7 @@
 				<label for="editNodeNameInput" class="name-field">Node Name:</label>
 				<input type="text" id="editNodeNameInput" class="name-field">
 				<label for="editNodeIdInput" class="id-field">Node ID:</label>
-				<input type="text" id="editNodeIdInput" class="id-field">
+				<input type="text" id="editNodeIdInput" class="id-field" readonly>
 
 				<div class="customization-section">
 					<div> <label for="editNodeColorPicker">Color:</label> <div id="editNodeColorPicker" class="color-picker"></div> </div>
@@ -255,7 +254,6 @@
 			const ctx = canvas.getContext('2d');
 			const tooltip = document.getElementById('tooltip');
 
-			// --- Modal Elements ---
 			const modalOverlay = document.getElementById('modalOverlay');
 			const createNodeModal = document.getElementById('createNodeModal');
 			const editNodeModal = document.getElementById('editNodeModal');
@@ -271,8 +269,7 @@
 			const editNodeColorPicker = document.getElementById('editNodeColorPicker');
 			const editNodeSizeSelector = document.getElementById('editNodeSizeSelector');
 
-			// --- Drawing constants ---
-			const GRID_SPACING = 50; // Visual distance between grid lines
+			const GRID_SPACING = 50;
 			const ORIGIN_DOT_RADIUS = 3;
 			const GRID_COLOR = '#404E67';
 			const ARM_RADIUS = 8;
@@ -298,21 +295,8 @@
 			// ===================================
 			// HELPERS
 			// ===================================
-			function toCamelCase(str) {
-				if (!str || typeof str !== 'string') return '';
-				const s = str.replace(/[^a-zA-Z0-9\s]/g, '').trim(); // Remove special chars, trim
-				return s.replace(/(?:^\w|[A-Z]|\b\w)/g, (word, index) => index === 0 ? word.toLowerCase() : word.toUpperCase()).replace(/\s+/g, '');
-			}
-
-			function generateUniqueId(name, existingIds, defaultName = 'item') {
-				const baseId = toCamelCase(name) || defaultName;
-				let finalId = baseId;
-				let counter = 1;
-				const existingIdSet = new Set(existingIds);
-				while (existingIdSet.has(finalId)) {
-					finalId = `${baseId}${counter++}`;
-				}
-				return finalId;
+			function generateUUID() {
+				return crypto.randomUUID();
 			}
 
 			// ===================================
@@ -324,21 +308,20 @@
 			}
 
 			// ===================================
-			// CORE LOGIC (Nodes, Arms, Connections)
+			// CORE LOGIC
 			// ===================================
 			function createNode(id, name, armData, x, y, color, size) {
 				const newNode = {
-					id: id, name: name,
-					x: x, y: y, // Storing logical coordinates
+					id: id || generateUUID(),
+					name: name,
+					x: x, y: y,
 					color: color || NODE_COLORS[0],
 					size: size || 'medium',
 					arms: []
 				};
 
-				const armBaseIds = [];
 				for (const arm of armData) {
-					const localArmId = arm.id || generateUniqueId(arm.name, armBaseIds, 'arm');
-					armBaseIds.push(localArmId);
+					const localArmId = arm.id || generateUUID();
 					newNode.arms.push({
 						id: `${newNode.id}.${localArmId}`,
 						localId: localArmId,
@@ -390,7 +373,6 @@
 				}
 				const nodeRadius = NODE_SIZES[parentNode.size] || NODE_SIZES['medium'];
 				const armOffset = nodeRadius + ARM_STICK_OFFSET;
-				// Convert logical parent coordinates to world coordinates before calculating arm position
 				const parentWorldX = parentNode.x * GRID_SPACING;
 				const parentWorldY = parentNode.y * GRID_SPACING;
 				return {
@@ -412,7 +394,6 @@
 				const nameFields = modal.querySelectorAll('.name-field');
 				const idFields = modal.querySelectorAll('.id-field');
 				const isIdVisible = idFields[0].style.display === 'block';
-
 				nameFields.forEach(f => f.style.display = isIdVisible ? 'block' : 'none');
 				idFields.forEach(f => f.style.display = isIdVisible ? 'none' : 'block');
 				modal.querySelector('.id-toggle-btn').textContent = isIdVisible ? 'Show IDs' : 'Show Names';
@@ -421,11 +402,10 @@
 			function createArmInputGroup(arm = { name: '', localId: '' }) {
 				const group = document.createElement('div');
 				group.className = 'arm-name-input-group';
-
 				group.innerHTML = `
                     <div>
                         <input type="text" class="name-field" placeholder="Arm Name" value="${arm.name}">
-                        <input type="text" class="id-field" placeholder="armId" value="${arm.localId}">
+                        <input type="text" class="id-field" placeholder="arm-uuid" value="${arm.localId || generateUUID()}" readonly>
                     </div>
                     <button title="Delete Arm">X</button>
                 `;
@@ -435,14 +415,12 @@
 
 			function showCreateModal() {
 				nodeNameInput.value = '';
-				nodeIdInput.value = '';
+				nodeIdInput.value = generateUUID();
 				armNamesContainer.innerHTML = '';
 				armNamesContainer.appendChild(createArmInputGroup());
 				armNamesContainer.appendChild(createArmInputGroup());
-
 				populateColorPicker(nodeColorPicker, NODE_COLORS[0]);
 				populateSizeSelector(nodeSizeSelector, 'medium');
-
 				modalOverlay.style.display = 'flex';
 				createNodeModal.style.display = 'block';
 				editNodeModal.style.display = 'none';
@@ -462,7 +440,6 @@
 					group.dataset.armId = arm.id;
 					editArmList.appendChild(group);
 				});
-
 				modalOverlay.style.display = 'flex';
 				createNodeModal.style.display = 'none';
 				editNodeModal.style.display = 'block';
@@ -471,8 +448,8 @@
 			}
 
 			function hideAllModals() { modalOverlay.style.display = 'none'; selectedNodeForEdit = null; }
-			function populateColorPicker(container, selectedColor) { /* ... same as before ... */ container.innerHTML = ''; NODE_COLORS.forEach(color => { const swatch = document.createElement('div'); swatch.className = 'color-swatch'; swatch.style.backgroundColor = color; swatch.dataset.color = color; if (color === selectedColor) swatch.classList.add('selected'); swatch.addEventListener('click', () => { container.querySelector('.selected')?.classList.remove('selected'); swatch.classList.add('selected'); }); container.appendChild(swatch); }); }
-			function populateSizeSelector(selectElement, selectedSize) { /* ... same as before ... */ selectElement.innerHTML = ''; Object.keys(NODE_SIZES).forEach(sizeKey => { const option = document.createElement('option'); option.value = sizeKey; option.textContent = sizeKey.charAt(0).toUpperCase() + sizeKey.slice(1); if (sizeKey === selectedSize) option.selected = true; selectElement.appendChild(option); }); }
+			function populateColorPicker(container, selectedColor) { container.innerHTML = ''; NODE_COLORS.forEach(color => { const swatch = document.createElement('div'); swatch.className = 'color-swatch'; swatch.style.backgroundColor = color; swatch.dataset.color = color; if (color === selectedColor) swatch.classList.add('selected'); swatch.addEventListener('click', () => { container.querySelector('.selected')?.classList.remove('selected'); swatch.classList.add('selected'); }); container.appendChild(swatch); }); }
+			function populateSizeSelector(selectElement, selectedSize) { selectElement.innerHTML = ''; Object.keys(NODE_SIZES).forEach(sizeKey => { const option = document.createElement('option'); option.value = sizeKey; option.textContent = sizeKey.charAt(0).toUpperCase() + sizeKey.slice(1); if (sizeKey === selectedSize) option.selected = true; selectElement.appendChild(option); }); }
 
 			// ===================================
 			// DATA IMPORT / EXPORT
@@ -493,7 +470,6 @@
 					await writable.close();
 				} catch (err) {
 					if (err.name === 'AbortError') return;
-					console.warn('showSaveFilePicker API failed, falling back.', err);
 					const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `node-map-${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(a.href); a.remove();
 				}
 			}
@@ -518,8 +494,8 @@
 							nodes = newNodes;
 							connections = state.connections.map(c => ({ arm1Id: c.from, arm2Id: c.to }));
 							transform = state.transform;
-						} else { alert("Error: Invalid or corrupted file format."); }
-					} catch (err) { alert("Error reading file: " + err.message); } finally { event.target.value = ''; }
+						}
+					} catch (err) { alert("Error reading file."); } finally { event.target.value = ''; }
 				};
 				reader.readAsText(file);
 			}
@@ -538,10 +514,7 @@
 			}
 
 			function drawOriginDot() {
-				ctx.beginPath();
-				ctx.arc(0, 0, ORIGIN_DOT_RADIUS / transform.scale, 0, 2 * Math.PI);
-				ctx.fillStyle = 'white';
-				ctx.fill();
+				ctx.beginPath(); ctx.arc(0, 0, ORIGIN_DOT_RADIUS / transform.scale, 0, 2 * Math.PI); ctx.fillStyle = 'white'; ctx.fill();
 			}
 
 			function draw() {
@@ -551,7 +524,6 @@
 				ctx.clearRect(-transform.x / transform.scale, -transform.y / transform.scale, canvas.width / transform.scale, canvas.height / transform.scale);
 				drawGrid();
 				drawOriginDot();
-
 				ctx.strokeStyle = CONNECTION_COLOR; ctx.lineWidth = 3 / transform.scale;
 				connections.forEach(conn => {
 					const arm1 = findArmById(conn.arm1Id); const arm2 = findArmById(conn.arm2Id);
@@ -560,12 +532,10 @@
 						ctx.beginPath(); ctx.moveTo(pos1.x, pos1.y); ctx.lineTo(pos2.x, pos2.y); ctx.stroke();
 					}
 				});
-
 				nodes.forEach(node => {
 					const nodeRadius = NODE_SIZES[node.size] || NODE_SIZES['medium'];
 					const worldX = node.x * GRID_SPACING;
 					const worldY = node.y * GRID_SPACING;
-
 					node.arms.forEach(arm => {
 						const armPos = getArmWorldPosition(arm);
 						ctx.strokeStyle = ARM_COLOR; ctx.lineWidth = 4 / transform.scale;
@@ -576,7 +546,6 @@
 						ctx.fillStyle = armFillColor;
 						ctx.beginPath(); ctx.arc(armPos.x, armPos.y, ARM_RADIUS, 0, 2 * Math.PI); ctx.fill();
 					});
-
 					ctx.fillStyle = node.color;
 					ctx.beginPath(); ctx.arc(worldX, worldY, nodeRadius, 0, 2 * Math.PI); ctx.fill();
 					if (mouseState.hoveredItem === node || mouseState.draggedNode === node || selectedNodeForEdit === node) {
@@ -595,8 +564,10 @@
 				document.getElementById('exportBtn').addEventListener('click', exportData);
 				document.getElementById('importBtn').addEventListener('click', () => document.getElementById('importFileInput').click());
 				document.getElementById('importFileInput').addEventListener('change', importData);
-
 				document.querySelectorAll('.id-toggle-btn').forEach(btn => btn.addEventListener('click', (e) => toggleIdEdit(e.target.dataset.targetModal)));
+
+				// PREVENT CONTEXT MENU GLOBALLY (Canvas + Modals)
+				window.addEventListener('contextmenu', e => e.preventDefault());
 
 				modalOverlay.addEventListener('mousedown', (e) => { if (e.target === modalOverlay) isMouseDownOnModalOverlay = true; });
 				modalOverlay.addEventListener('mouseup', (e) => { if (e.target === modalOverlay && isMouseDownOnModalOverlay) hideAllModals(); isMouseDownOnModalOverlay = false; });
@@ -606,17 +577,11 @@
 
 				document.getElementById('createNodeConfirmBtn').addEventListener('click', () => {
 					const name = nodeNameInput.value.trim();
-					let id = toCamelCase(nodeIdInput.value.trim());
-					if (!id) id = generateUniqueId(name, nodes.map(n => n.id), 'node');
-					if (findNodeById(id)) { alert(`Error: Node ID "${id}" already exists. Please choose a unique ID.`); return; }
-
+					let id = nodeIdInput.value.trim();
 					const armData = Array.from(armNamesContainer.querySelectorAll('.arm-name-input-group')).map(group => ({
 						name: group.querySelector('.name-field').value.trim(),
-						id: toCamelCase(group.querySelector('.id-field').value.trim())
+						id: group.querySelector('.id-field').value.trim()
 					}));
-					const armIds = armData.map(a => a.id).filter(Boolean);
-					if (new Set(armIds).size !== armIds.length) { alert('Error: Arm IDs within a node must be unique.'); return; }
-
 					const color = nodeColorPicker.querySelector('.selected').dataset.color;
 					const size = nodeSizeSelector.value;
 					const logicalX = Math.round(((canvas.width / 2 - transform.x) / transform.scale) / GRID_SPACING);
@@ -630,49 +595,26 @@
 
 				document.getElementById('editNodeSaveBtn').addEventListener('click', () => {
 					if (!selectedNodeForEdit) return;
-					const oldNodeId = selectedNodeForEdit.id;
-					const newNodeId = toCamelCase(editNodeIdInput.value.trim());
-
-					if (!newNodeId) { alert('Node ID cannot be empty.'); return; }
-					if (newNodeId !== oldNodeId && findNodeById(newNodeId)) { alert(`Error: Node ID "${newNodeId}" already exists.`); return; }
-
+					const newNodeId = editNodeIdInput.value.trim();
 					selectedNodeForEdit.name = editNodeNameInput.value.trim();
-					selectedNodeForEdit.id = newNodeId;
 					selectedNodeForEdit.color = editNodeColorPicker.querySelector('.selected').dataset.color;
 					selectedNodeForEdit.size = editNodeSizeSelector.value;
-
 					const armElements = editArmList.querySelectorAll('.arm-name-input-group');
 					const finalArms = [];
 					const armIdMap = new Map();
-					const localArmIds = new Set();
-
 					armElements.forEach(group => {
-						const newLocalId = toCamelCase(group.querySelector('.id-field').value.trim()) || generateUniqueId(group.querySelector('.name-field').value.trim(), Array.from(localArmIds), 'arm');
-						if (localArmIds.has(newLocalId)) { alert(`Error: Duplicate arm ID "${newLocalId}" found.`); throw new Error('Duplicate Arm ID'); }
-						localArmIds.add(newLocalId);
-
+						const newLocalId = group.querySelector('.id-field').value.trim();
 						const oldFullArmId = group.dataset.armId;
 						const newFullArmId = `${newNodeId}.${newLocalId}`;
 						if (oldFullArmId && oldFullArmId !== newFullArmId) { armIdMap.set(oldFullArmId, newFullArmId); }
-
-						finalArms.push({
-							id: newFullArmId, localId: newLocalId, parentNodeId: newNodeId,
-							name: group.querySelector('.name-field').value.trim(), angle: 0
-						});
+						finalArms.push({ id: newFullArmId, localId: newLocalId, parentNodeId: newNodeId, name: group.querySelector('.name-field').value.trim(), angle: 0 });
 					});
-
-					// Update connections based on ID changes
-					if (armIdMap.size > 0 || oldNodeId !== newNodeId) {
+					if (armIdMap.size > 0) {
 						connections.forEach(conn => {
-							if(oldNodeId !== newNodeId) { // Global node ID change
-								if(conn.arm1Id.startsWith(oldNodeId + '.')) conn.arm1Id = conn.arm1Id.replace(oldNodeId, newNodeId);
-								if(conn.arm2Id.startsWith(oldNodeId + '.')) conn.arm2Id = conn.arm2Id.replace(oldNodeId, newNodeId);
-							}
 							if(armIdMap.has(conn.arm1Id)) conn.arm1Id = armIdMap.get(conn.arm1Id);
 							if(armIdMap.has(conn.arm2Id)) conn.arm2Id = armIdMap.get(conn.arm2Id);
 						});
 					}
-
 					selectedNodeForEdit.arms.forEach(originalArm => { if (!finalArms.some(fa => fa.id === originalArm.id || armIdMap.get(originalArm.id) === fa.id)) disconnectArm(originalArm.id); });
 					selectedNodeForEdit.arms = finalArms;
 					recalculateArmAngles(selectedNodeForEdit);
@@ -715,10 +657,8 @@
 				canvas.addEventListener('mousemove', e => {
 					mouseState.x = e.clientX; mouseState.y = e.clientY; updateWorldMouseCoords();
 					if (mouseState.draggedNode) {
-						const targetWorldX = mouseState.worldX - mouseState.draggedNode.offsetX;
-						const targetWorldY = mouseState.worldY - mouseState.draggedNode.offsetY;
-						mouseState.draggedNode.x = Math.round(targetWorldX / GRID_SPACING);
-						mouseState.draggedNode.y = Math.round(targetWorldY / GRID_SPACING);
+						mouseState.draggedNode.x = Math.round((mouseState.worldX - mouseState.draggedNode.offsetX) / GRID_SPACING);
+						mouseState.draggedNode.y = Math.round((mouseState.worldY - mouseState.draggedNode.offsetY) / GRID_SPACING);
 					} else if (mouseState.panStart) {
 						transform.x += mouseState.x - mouseState.panStart.x; transform.y += mouseState.y - mouseState.panStart.y;
 						mouseState.panStart = { x: mouseState.x, y: mouseState.y };
@@ -730,25 +670,22 @@
 					}
 					if (!foundItem) { for (const node of nodes) { if (Math.hypot(mouseState.worldX - (node.x * GRID_SPACING), mouseState.worldY - (node.y * GRID_SPACING)) <= nodeRadius(node)) { foundItem = node; break; } } }
 					mouseState.hoveredItem = foundItem;
-
 					if (mouseState.hoveredItem && mouseState.hoveredItem.name) {
 						tooltip.style.display = 'block'; tooltip.style.left = `${e.clientX + 15}px`; tooltip.style.top = `${e.clientY + 15}px`; tooltip.textContent = mouseState.hoveredItem.name;
 					} else { tooltip.style.display = 'none'; }
 				});
 
 				canvas.addEventListener('mouseup', e => {
-					if (mouseState.draggedNode && Math.hypot(e.clientX - mouseState.downPos.x, e.clientY - mouseState.downPos.y) < 5) {
-						showEditModal(mouseState.draggedNode);
-					}
+					if (mouseState.draggedNode && Math.hypot(e.clientX - mouseState.downPos.x, e.clientY - mouseState.downPos.y) < 5) showEditModal(mouseState.draggedNode);
 					mouseState.isDown = false; mouseState.draggedNode = null; mouseState.panStart = null;
 				});
 
 				canvas.addEventListener('mouseleave', () => { mouseState.isDown = false; mouseState.draggedNode = null; mouseState.panStart = null; tooltip.style.display = 'none'; });
 
 				canvas.addEventListener('wheel', e => {
-					e.preventDefault(); const zoomIntensity = 0.75; const scaleAmount = 1 - e.deltaY * 0.001 * zoomIntensity;
+					e.preventDefault(); const scaleAmount = 1 - e.deltaY * 0.00075;
 					const worldXBeforeZoom = (e.clientX - transform.x) / transform.scale; const worldYBeforeZoom = (e.clientY - transform.y) / transform.scale;
-					transform.scale *= scaleAmount; transform.scale = Math.max(0.1, Math.min(transform.scale, 5));
+					transform.scale = Math.max(0.1, Math.min(transform.scale * scaleAmount, 5));
 					const worldXAfterZoom = (e.clientX - transform.x) / transform.scale; const worldYAfterZoom = (e.clientY - transform.y) / transform.scale;
 					transform.x += (worldXAfterZoom - worldXBeforeZoom) * transform.scale; transform.y += (worldYAfterZoom - worldYBeforeZoom) * transform.scale;
 				});
